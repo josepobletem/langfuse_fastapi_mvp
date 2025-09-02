@@ -1,0 +1,31 @@
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+*.coverage
+.cache/
+.venv/
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.*
+
+# Byte-compiled / optimized / DLL files
+build/
+dist/
+
+# Logs
+logs/
+*.log
+
+# Docker
+*.pid

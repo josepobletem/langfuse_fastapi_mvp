@@ -1,0 +1,33 @@
+
+version: "3.9"
+services:
+  app:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - langfuse
+  # Minimal placeholder; refer to Langfuse docs for full production config
+  langfuse:
+    image: langfuse/langfuse:latest
+    environment:
+      - NEXTAUTH_SECRET=devsecretchangeme
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/langfuse
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=langfuse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
