@@ -1,4 +1,4 @@
- variable "project_name" {
+variable "project_name" {
   description = "Nombre lógico del proyecto (solo para demo local)."
   type        = string
   default     = "langfuse-fastapi-demo"
@@ -9,3 +9,4 @@ variable "artifacts_dir" {
   type        = string
   default     = "artifacts"
 }
+
