@@ -1,39 +1,26 @@
-name: release
-
+name: release-ghcr
 on:
   push:
-    tags:
-      - "v*.*.*"
+    tags: ["v*.*.*"]
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/langfuse-fastapi-demo
-
+      IMAGE: ghcr.io/${{ github.repository_owner }}/langfuse-fastapi-demo
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
+      - uses: actions/checkout@v4
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-            ${{ env.IMAGE_NAME }}:latest
+      - name: Build & Push
+        run: |
+          docker build -t $IMAGE:${{ github.ref_name }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.ref_name }}
+          docker push $IMAGE:latest

@@ -5,7 +5,11 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from src.config import settings
+from src.logging_setup import setup_logging
 from src.obsv import Obs
+
+# Inicializa logging en formato JSON
+setup_logging(level="INFO")
 
 # --- Logging estructurado básico ---
 logging.basicConfig(
