@@ -13,12 +13,13 @@ This module is framework- and vendor-agnostic; Langfuse is optional (graceful no
 import logging
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import List, Optional, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -118,7 +119,11 @@ class Answer(BaseModel):
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=0.3, min=0.3, max=3),
 )
-def call_llm(messages: List[Dict[str, str]], temperature: float = 0.2, model: str = "gpt-4o-mini"):
+def call_llm(
+    messages: List[ChatCompletionMessageParam],
+    temperature: float = 0.2,
+    model: str = "gpt-4o-mini",
+):
     """Invoke the LLM with retry and record call latency as a Prometheus metric.
 
     Args:
@@ -136,6 +141,7 @@ def call_llm(messages: List[Dict[str, str]], temperature: float = 0.2, model: st
     if client is None:
         raise RuntimeError("LLM not configured")
     t0 = time.perf_counter()
+    # mypy: messages correctly typed as List[ChatCompletionMessageParam]
     completion = client.chat.completions.create(
         model=model,
         messages=messages,
@@ -145,12 +151,12 @@ def call_llm(messages: List[Dict[str, str]], temperature: float = 0.2, model: st
     return completion
 
 
-def truncate_words(text: str, max_words: int) -> str:
+def truncate_words(text: str, max_words: Optional[int]) -> str:
     """Soft-truncate text by word count, appending an ellipsis if truncated.
 
     Args:
         text: Original text to truncate.
-        max_words: Maximum number of words to keep.
+        max_words: Maximum number of words to keep; if None, no truncation.
 
     Returns:
         The truncated string, or the original text when within limit.
@@ -224,11 +230,11 @@ def ask(req: Ask, request: Request):
         metadata={"prompt_version": "qa_enhanced_v1"},
     )
 
-    # 2) Prompt
+    # 2) Prompt (typed to satisfy mypy & OpenAI types)
     sys_prompt = "Eres un asistente breve, preciso y en español."
-    messages = [
-        {"role": "system", "content": sys_prompt},
-        {"role": "user", "content": req.question},
+    messages: List[ChatCompletionMessageParam] = [
+        cast(ChatCompletionMessageParam, {"role": "system", "content": sys_prompt}),
+        cast(ChatCompletionMessageParam, {"role": "user", "content": req.question}),
     ]
 
     # 3) LLM call with retry + latency metric
@@ -255,7 +261,7 @@ def ask(req: Ask, request: Request):
         model="gpt-4o-mini",
         input=req.question,
         output=answer,
-        usage=usage.model_dump() if usage else None,
+        usage=usage.model_dump() if usage else None,  # type: ignore[union-attr]
         metadata={"prompt_version": "qa_enhanced_v1"},
     )
     obs.score(
