@@ -1,0 +1,2 @@
+project_name  = "langfuse-fastapi-demo"
+artifacts_dir = "artifacts"

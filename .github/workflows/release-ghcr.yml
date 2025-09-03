@@ -1,0 +1,31 @@
+name: release-ghcr
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch: {}  
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/langfuse-fastapi-demo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push
+        run: |
+          docker build -t $IMAGE:${{ github.ref_name }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.ref_name }}
+          docker push $IMAGE:latest
