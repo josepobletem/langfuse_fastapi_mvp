@@ -4,6 +4,10 @@ on:
   push: { branches: [ main ] }
   pull_request: { branches: [ main ] }
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-types:
     runs-on: ubuntu-latest
@@ -83,19 +87,16 @@ jobs:
           sleep 2
 
       - name: Smoke: /health
-        run: |
-          curl -sf http://127.0.0.1:${PORT}/health | jq .
+        run: curl -sf http://127.0.0.1:${PORT}/health | jq .
 
       - name: Smoke: /metrics
-        run: |
-          curl -sf http://127.0.0.1:${PORT}/metrics | head -n 20
+        run: curl -sf http://127.0.0.1:${PORT}/metrics | head -n 20
 
-      - name: Smoke: /ask (stub LLM forcing 502 expectation if no OPENAI_API_KEY)
+      - name: Smoke: /ask (accept 200 or 502)
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:${PORT}/ask \
             -H "Content-Type: application/json" \
             -d '{"user_id":"ci","question":"What is this app?"}')
-          # Aceptamos 200 (si hay OPENAI_API_KEY) o 502 (sin clave real)
           if [ "$code" != "200" ] && [ "$code" != "502" ]; then
             echo "Unexpected status code: $code"; exit 1
           fi
@@ -120,8 +121,8 @@ jobs:
           pip install bandit pip-audit
       - name: Bandit (SAST)
         run: bandit -q -r src -ll
-      - name: pip-audit (vulns deps)
-        run: pip-audit -r requirements.txt || true  # no rompas el build por avisos menores
+      - name: pip-audit (deps vulnerabilities)
+        run: pip-audit -r requirements.txt || true
 
   docker-build:
     runs-on: ubuntu-latest
