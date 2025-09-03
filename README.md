@@ -16,18 +16,18 @@ Langfuse está pensado específicamente para aplicaciones que llaman a modelos d
 
 En tu proyecto se usa para:
 
-Trazas (trace) → cada request de usuario se guarda como una traza en Langfuse.
+- **Trazas (trace)** → cada request de usuario se guarda como una traza en Langfuse.
 Ejemplo: cuando alguien llama a /ask, se registra user_id, la pregunta y metadatos como versión del prompt.
 
-Generaciones (generation) → cada llamada al modelo (ej. OpenAI GPT) se registra como una "generación".
+- **Generaciones (generation)** → cada llamada al modelo (ej. OpenAI GPT) se registra como una "generación".
 Incluye el input, el output, el modelo usado y las métricas de tokens.
 
-Scores (score) → puedes añadir métricas personalizadas para evaluar la calidad de las respuestas.
+- **Scores (score)** → puedes añadir métricas personalizadas para evaluar la calidad de las respuestas.
 En el ejemplo:
 
-non_empty_answer → mide si el modelo devolvió texto vacío o no.
+  - **non_empty_answer** → mide si el modelo devolvió texto vacío o no.
 
-toxicity_safe → heurística que marca si el texto es seguro (no tóxico).
+  - **toxicity_safe** → heurística que marca si el texto es seguro (no tóxico).
 
 👉 Resumen: Langfuse = observabilidad enfocada en el comportamiento y calidad de las respuestas del LLM.
 
@@ -39,39 +39,37 @@ Prometheus se usa para métricas de infraestructura y performance de la API, no 
 
 En tu proyecto:
 
-Contadores
+- **Contadore**
+  - app_requests_total{endpoint,method,status} → número de requests recibidas por endpoint/método/status.
 
-app_requests_total{endpoint,method,status} → número de requests recibidas por endpoint/método/status.
+- **Latencia**
 
-Latencia
+  - app_request_latency_seconds{endpoint,method} → histogramas de tiempo de respuesta por endpoint.
 
-app_request_latency_seconds{endpoint,method} → histogramas de tiempo de respuesta por endpoint.
+  - app_llm_latency_seconds{model} → latencia de las llamadas al modelo LLM.
 
-app_llm_latency_seconds{model} → latencia de las llamadas al modelo LLM.
+- **Gauge**
 
-Gauge
+  - app_requests_in_progress → cuántas requests están en curso en este momento.
 
-app_requests_in_progress → cuántas requests están en curso en este momento.
+- **Custom**
 
-Custom
-
-app_llm_tokens_used → tokens consumidos por el modelo.
+  - app_llm_tokens_used → tokens consumidos por el modelo.
 
 👉 Resumen: Prometheus = monitoreo clásico de servicios, pensado para alertas e infraestructura.
 Sirve para saber si tu API está rápida, cuántos requests recibe, cuántos errores hay, etc.
 
 ## 🧩 Cómo se complementan
 
-Prometheus te da la visión de la salud y rendimiento del servicio (requests, latencia, errores).
+- Prometheus te da la visión de la salud y rendimiento del servicio (requests, latencia, errores).
 
-Langfuse te da la visión de la calidad y trazabilidad de las respuestas del modelo (qué preguntó el usuario, qué respondió el LLM, si fue seguro/útil).
+- Langfuse te da la visión de la calidad y trazabilidad de las respuestas del modelo (qué preguntó el usuario, qué respondió el LLM, si fue seguro/útil).
 
 En conjunto:
 
-Si ves que /ask tarda 3 segundos en Prometheus, en Langfuse puedes inspeccionar la traza y ver qué modelo respondió lento.
+- Si ves que /ask tarda 3 segundos en Prometheus, en Langfuse puedes inspeccionar la traza y ver qué modelo respondió lento.
 
-Si un usuario se queja de una respuesta ofensiva, en Langfuse puedes revisar la generación, y en Prometheus ver cuántas veces ocurrió.
-
+- Si un usuario se queja de una respuesta ofensiva, en Langfuse puedes revisar la generación, y en Prometheus ver cuántas veces ocurrió.
 
 ---
 
