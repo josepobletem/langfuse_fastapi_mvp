@@ -99,19 +99,31 @@ jobs:
           echo $! > uvicorn.pid
           sleep 2
 
-      - name: Smoke: /health
-        run: curl -sf "http://127.0.0.1:${PORT}/health"
-
-      - name: Smoke: /metrics
-        run: curl -sf "http://127.0.0.1:${PORT}/metrics" | head -n 20
-
-      - name: Smoke: /ask (accept 200 or 502)
+      - name: "Smoke - /health"
         run: |
+          curl -sf "http://127.0.0.1:${PORT}/health"
+
+      - name: "Smoke - /metrics"
+        run: |
+          curl -sf "http://127.0.0.1:${PORT}/metrics" | head -n 20
+
+      - name: "Smoke - /ask (accept 200 or 502)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > request.json <<'JSON'
+          {
+            "user_id": "ci",
+            "question": "What is this app?"
+          }
+          JSON
+
           code="$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "http://127.0.0.1:${PORT}/ask" \
             -H "Content-Type: application/json" \
-            -d '{"user_id":"ci","question":"What is this app?"}')"
-          if [ "$code" != "200" ] && [ "$code" != "502" ]; then
+            --data-binary @request.json)"
+
+          if [[ "$code" != "200" && "$code" != "502" ]]; then
             echo "Unexpected status code: $code"
             exit 1
           fi
