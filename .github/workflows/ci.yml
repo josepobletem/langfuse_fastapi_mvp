@@ -1,27 +1,133 @@
 name: ci
+
 on:
   push: { branches: [ main ] }
   pull_request: { branches: [ main ] }
 
 jobs:
-  build-test:
+  lint-and-types:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11", cache: "pip" }
-      - name: Install deps
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps (project + linters)
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install black isort flake8 pytest
-      - name: Lint
+          pip install black isort flake8 mypy
+
+      - name: Black (check)
+        run: black --check .
+
+      - name: Isort (check)
+        run: isort --profile black --check-only .
+
+      - name: Flake8
+        run: flake8 src tests
+
+      - name: Mypy
+        run: mypy --ignore-missing-imports src
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: [lint-and-types]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps (with test extras)
         run: |
-          black --check .
-          isort --check-only .
-          flake8 src tests
-      - name: Tests
-        run: pytest -q
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests + coverage
+        run: |
+          pytest -q --maxfail=1 --disable-warnings \
+                 --cov=src --cov-report=xml --cov-report=term
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    env:
+      PORT: 8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps (runtime + httpx)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install httpx
+
+      - name: Start server (background)
+        run: |
+          uvicorn src.app:app --host 0.0.0.0 --port ${PORT} &
+          echo $! > uvicorn.pid
+          sleep 2
+
+      - name: Smoke: /health
+        run: |
+          curl -sf http://127.0.0.1:${PORT}/health | jq .
+
+      - name: Smoke: /metrics
+        run: |
+          curl -sf http://127.0.0.1:${PORT}/metrics | head -n 20
+
+      - name: Smoke: /ask (stub LLM forcing 502 expectation if no OPENAI_API_KEY)
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:${PORT}/ask \
+            -H "Content-Type: application/json" \
+            -d '{"user_id":"ci","question":"What is this app?"}')
+          # Aceptamos 200 (si hay OPENAI_API_KEY) o 502 (sin clave real)
+          if [ "$code" != "200" ] && [ "$code" != "502" ]; then
+            echo "Unexpected status code: $code"; exit 1
+          fi
+
+      - name: Stop server
+        if: always()
+        run: |
+          kill $(cat uvicorn.pid) || true
+
+  security:
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit pip-audit
+      - name: Bandit (SAST)
+        run: bandit -q -r src -ll
+      - name: pip-audit (vulns deps)
+        run: pip-audit -r requirements.txt || true  # no rompas el build por avisos menores
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [integration-tests, security]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
       - name: Build Docker
         run: docker build -t langfuse-fastapi-demo:ci .
-
