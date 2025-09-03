@@ -1,8 +1,13 @@
 name: terraform-checks
 
 on:
-  push: { paths: ["infra/terraform/**"] }
-  pull_request: { paths: ["infra/terraform/**"] }
+  push:
+    branches: [ main, develop ]
+    paths: ["infra/terraform/**"]
+  pull_request:
+    branches: [ main, develop ]
+    paths: ["infra/terraform/**"]
+  workflow_dispatch: {}
 
 jobs:
   tf-validate-and-plan:
